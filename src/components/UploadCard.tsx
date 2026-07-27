@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FileUp } from "lucide-react";
 import {
-    getResult,
+    getStructuredResult,
     getStatus,
     startExtraction,
     type ExtractionStatusResponse,
@@ -88,6 +88,7 @@ export default function UploadCard() {
             setIsSubmitting(true);
 
             const { job_id } = await startExtraction(file);
+            console.log("Extração iniciada com job_id:", job_id);
             localStorage.setItem("currentJobId", job_id);
 
             const status = await getStatus(job_id);
@@ -107,7 +108,9 @@ export default function UploadCard() {
 
         try {
 
-            const extractionResult = await getResult(job.job_id);
+            console.log("Carregando resultado da extração para o job_id:", job.job_id);
+
+            const extractionResult = await getStructuredResult(job.job_id);
 
             console.log("Resultado da extração:", extractionResult);
 

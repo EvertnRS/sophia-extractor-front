@@ -15,13 +15,18 @@ export default function ResultModal({
     result,
 }: ResultModalProps) {
     const [fields, setFields] = useState<EditableFieldType[]>([]);
-    const [visibleCount, setVisibleCount] = useState(60);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 20;
     const [search, setSearch] = useState("");
 
     useEffect(() => {
         setFields(flattenObject(result));
-        setVisibleCount(60);
+        setCurrentPage(1);
     }, [result]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search]);
 
     const filteredFields = useMemo(() => {
 
@@ -38,7 +43,10 @@ export default function ResultModal({
 
     }, [fields, search]);
 
-    const visibleFields = filteredFields.slice(0, visibleCount);
+    const totalPages = Math.max(1, Math.ceil(filteredFields.length / itemsPerPage));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    const visibleFields = filteredFields.slice(startIndex, startIndex + itemsPerPage);
 
     if (!open) return null;
 
@@ -111,6 +119,36 @@ export default function ResultModal({
 
                     </div>
 
+                    <div className="mb-4 flex items-center justify-between text-sm text-gray-500">
+                        <p>
+                            Mostrando {filteredFields.length === 0 ? 0 : startIndex + 1}
+                            -{Math.min(startIndex + itemsPerPage, filteredFields.length)}
+                            de {filteredFields.length}
+                        </p>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                className="rounded-full border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40"
+                                onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                                disabled={safeCurrentPage === 1}
+                            >
+                                Anterior
+                            </button>
+
+                            <span>
+                                Página {safeCurrentPage} de {totalPages}
+                            </span>
+
+                            <button
+                                className="rounded-full border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40"
+                                onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                                disabled={safeCurrentPage === totalPages}
+                            >
+                                Próxima
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="space-y-1">
 
                         {visibleFields.map((field, index) => (
@@ -122,14 +160,11 @@ export default function ResultModal({
 
                                     setFields(previous => {
 
-                                        const copy = [...previous];
-
-                                        copy[index] = {
-                                            ...copy[index],
-                                            value,
-                                        };
-
-                                        return copy;
+                                        return previous.map(item =>
+                                            item.path === field.path
+                                                ? { ...item, value }
+                                                : item
+                                        );
                                     });
 
                                 }}

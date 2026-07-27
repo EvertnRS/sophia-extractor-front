@@ -11,6 +11,15 @@ export interface ExtractionStatusResponse {
   updated_at: string;
 }
 
+export interface StructuredExtractionResponse {
+  job_id: string;
+  status: string;
+  data: {
+    filename: string;
+    structured_data: Record<string, unknown>;
+  };
+}
+
 export async function startExtraction(file: File) {
   const formData = new FormData();
 
@@ -33,4 +42,12 @@ export async function getStatus(jobId: string) {
 export async function getResult(jobId: string) {
   const response = await api.get(`/extractions/${jobId}/result`);
   return response.data;
+}
+
+export async function getStructuredResult(jobId: string) {
+  const response = await api.post(`/extractions/${jobId}/structured`);
+  const structuredData = (response.data as StructuredExtractionResponse)?.data
+    ?.structured_data;
+
+  return structuredData ?? null;
 }
