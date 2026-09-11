@@ -6,6 +6,10 @@ import {
     startExtraction,
     type ExtractionStatusResponse,
 } from "../api/extraction";
+import {
+    listStructuredData,
+    type StructuredDataRecord,
+} from "../api/structuredData";
 import ProgressBar from "./ProgressBar";
 import ResultModal from "./ResultModal";
 
@@ -16,10 +20,33 @@ export default function UploadCard() {
     const [isPolling, setIsPolling] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<Record<string, unknown> | null>(null);
+    const [savedExtractions, setSavedExtractions] = useState<StructuredDataRecord[]>([]);
+    const [isLoadingSaved, setIsLoadingSaved] = useState(false);
+    const [savedError, setSavedError] = useState<string | null>(null);
 
     const [openResult, setOpenResult] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
+
+    async function loadSavedExtractions() {
+        try {
+            setSavedError(null);
+            setIsLoadingSaved(true);
+
+            const records = await listStructuredData();
+            setSavedExtractions(records);
+        } catch (err) {
+            console.error(err);
+            setSavedError("Nao foi possivel carregar as extracoes salvas.");
+        } finally {
+            setIsLoadingSaved(false);
+        }
+    }
+
+    function openSavedExtraction(record: StructuredDataRecord) {
+        setResult(record.structured_data);
+        setOpenResult(true);
+    }
 
     useEffect(() => {
         const jobId = localStorage.getItem("currentJobId");
@@ -39,6 +66,10 @@ export default function UploadCard() {
         }
 
         restoreJob();
+    }, []);
+
+    useEffect(() => {
+        loadSavedExtractions();
     }, []);
 
     useEffect(() => {
@@ -81,22 +112,29 @@ export default function UploadCard() {
     }, [job?.job_id, job?.status]);
 
     async function handleUpload() {
-        if (!file) return;
+        if (!file) {
+            setError("Selecione um arquivo PDF antes de iniciar a extração.");
+            return;
+        }
 
         try {
             setError(null);
             setIsSubmitting(true);
 
-            const { job_id } = await startExtraction(file);
-            console.log("Extração iniciada com job_id:", job_id);
-            localStorage.setItem("currentJobId", job_id);
-
-            const status = await getStatus(job_id);
+            const startedJob = await startExtraction(file);
+            const status = await getStatus(startedJob.job_id);
+            localStorage.setItem("currentJobId", status.job_id);
             setJob(status);
             setFile(null);
+
+            if (status.status === "completed") {
+                const extractionResult = await getStructuredResult(status.job_id);
+                setResult(extractionResult);
+                setOpenResult(true);
+            }
         } catch (err) {
             console.error(err);
-            setError("Não foi possível iniciar a extração.");
+            setError("Não foi possível carregar a extração selecionada.");
         } finally {
             setIsSubmitting(false);
         }
@@ -228,7 +266,7 @@ export default function UploadCard() {
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                 <button
-                    disabled={!file || isSubmitting || Boolean(job && isPolling)}
+                    disabled={isSubmitting || Boolean(job && isPolling)}
                     className="
                         rounded-full
                         bg-[#4A3534]
@@ -242,7 +280,7 @@ export default function UploadCard() {
                     "
                     onClick={handleUpload}
                 >
-                    {isSubmitting ? "Iniciando..." : "Iniciar extração"}
+                    {isSubmitting ? "Carregando..." : "Extrair"}
                 </button>
 
                 {job && (job.status === "completed" || job.status === "failed") && (
@@ -275,11 +313,50 @@ export default function UploadCard() {
                     open={openResult}
                     result={result}
                     onClose={() => setOpenResult(false)}
-                    
+                    onSaved={loadSavedExtractions}
                 />   
 
                 {error && (
                     <p className="w-full text-center text-sm text-red-600">{error}</p>
+                )}
+            </div>
+
+            <div className="mt-10 rounded-3xl border border-[#E8C8C5] bg-white p-6">
+                <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-xl font-semibold text-[#4A3534]">
+                        Extracoes salvas
+                    </h3>
+
+                    <button
+                        onClick={loadSavedExtractions}
+                        disabled={isLoadingSaved}
+                        className="rounded-full border border-[#E8C8C5] px-4 py-2 text-sm text-[#4A3534] transition hover:bg-[#F8F3F2] disabled:opacity-40"
+                    >
+                        {isLoadingSaved ? "Atualizando..." : "Atualizar"}
+                    </button>
+                </div>
+
+                {savedError && (
+                    <p className="text-sm text-red-600">{savedError}</p>
+                )}
+
+                {!savedError && savedExtractions.length === 0 && !isLoadingSaved && (
+                    <p className="text-sm text-gray-500">Nenhuma extracao salva encontrada.</p>
+                )}
+
+                {savedExtractions.length > 0 && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        {savedExtractions.map((record) => (
+                            <button
+                                key={`${record.dnv}-${record.updated_at}`}
+                                onClick={() => openSavedExtraction(record)}
+                                className="rounded-2xl border border-[#E8C8C5] bg-[#FCFBFA] p-4 text-left transition hover:border-[#B67B73]"
+                            >
+                                <p className="text-sm text-gray-500">DNV</p>
+                                <p className="mt-1 text-lg font-semibold text-[#4A3534]">{record.dnv}</p>
+                            </button>
+                        ))}
+                    </div>
                 )}
             </div>
 

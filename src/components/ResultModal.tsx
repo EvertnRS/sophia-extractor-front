@@ -2,26 +2,102 @@ import type { EditableField as EditableFieldType } from "../types/editableLabel"
 import { useEffect, useMemo, useState } from "react";
 import EditableField from "./EditableField";
 import { flattenObject } from "../utils/flattenJson";
+import axios from "axios";
+import { createStructuredData } from "../api/structuredData";
 
 interface ResultModalProps {
     open: boolean;
     result: Record<string, unknown> | null;
     onClose: () => void;
+    onSaved?: () => Promise<void> | void;
 }
 
 export default function ResultModal({
     open,
     onClose,
     result,
+    onSaved,
 }: ResultModalProps) {
     const [fields, setFields] = useState<EditableFieldType[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
     const [search, setSearch] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+
+    function buildStructuredDataFromFields(editableFields: EditableFieldType[]) {
+        const structuredData: Record<string, unknown> = {};
+
+        for (const field of editableFields) {
+            const keys = field.path.split(".").filter(Boolean);
+
+            if (keys.length === 0) continue;
+
+            let current: Record<string, unknown> = structuredData;
+
+            for (let index = 0; index < keys.length - 1; index += 1) {
+                const key = keys[index];
+                const next = current[key];
+
+                if (!next || typeof next !== "object" || Array.isArray(next)) {
+                    current[key] = {};
+                }
+
+                current = current[key] as Record<string, unknown>;
+            }
+
+            current[keys[keys.length - 1]] = field.value;
+        }
+
+        return structuredData;
+    }
+
+    async function handleSave() {
+        try {
+            setSaveError(null);
+            setSaveSuccess(null);
+
+            const structuredData = buildStructuredDataFromFields(fields);
+            const dnvValue = structuredData.dnv;
+
+            if (typeof dnvValue !== "string" || dnvValue.trim().length === 0) {
+                setSaveError("O campo dnv é obrigatório para salvar.");
+                return;
+            }
+
+            structuredData.dnv = dnvValue.trim();
+
+            setIsSaving(true);
+            await createStructuredData(structuredData);
+            setSaveSuccess("Dados salvos com sucesso.");
+            await onSaved?.();
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const status = error.response?.status;
+
+                if (status === 409) {
+                    setSaveError("Já existe um registro com esse dnv.");
+                    return;
+                }
+
+                if (status === 422) {
+                    setSaveError("Payload inválido para persistência.");
+                    return;
+                }
+            }
+
+            setSaveError("Não foi possível salvar os dados estruturados.");
+        } finally {
+            setIsSaving(false);
+        }
+    }
 
     useEffect(() => {
         setFields(flattenObject(result));
         setCurrentPage(1);
+        setSaveError(null);
+        setSaveSuccess(null);
     }, [result]);
 
     useEffect(() => {
@@ -151,7 +227,7 @@ export default function ResultModal({
 
                     <div className="space-y-1">
 
-                        {visibleFields.map((field, index) => (
+                        {visibleFields.map((field) => (
 
                             <EditableField
                                 key={field.path}
@@ -180,17 +256,28 @@ export default function ResultModal({
 
                 <div className="flex justify-end gap-4 border-t p-6">
 
+                    {saveError && (
+                        <p className="mr-auto self-center text-sm text-red-600">{saveError}</p>
+                    )}
+
+                    {saveSuccess && (
+                        <p className="mr-auto self-center text-sm text-green-700">{saveSuccess}</p>
+                    )}
+
                     <button
                         onClick={onClose}
+                        disabled={isSaving}
                         className="rounded-full border px-6 py-2"
                     >
                         Cancelar
                     </button>
 
                     <button
+                        onClick={handleSave}
+                        disabled={isSaving}
                         className="rounded-full bg-[#4A3534] px-6 py-2 text-white"
                     >
-                        Salvar alterações
+                        {isSaving ? "Salvando..." : "Salvar alterações"}
                     </button>
 
                 </div>
