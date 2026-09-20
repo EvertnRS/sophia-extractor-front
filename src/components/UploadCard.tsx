@@ -10,6 +10,7 @@ import {
     listStructuredData,
     type StructuredDataRecord,
 } from "../api/structuredData";
+import type { FieldSource } from "../api/extraction";
 import ProgressBar from "./ProgressBar";
 import ResultModal from "./ResultModal";
 
@@ -19,7 +20,10 @@ export default function UploadCard() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isPolling, setIsPolling] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [result, setResult] = useState<Record<string, unknown> | null>(null);
+    const [result, setResult] = useState<{
+        structuredData: Record<string, unknown>;
+        fieldSources: Record<string, FieldSource>;
+    } | null>(null);
     const [savedExtractions, setSavedExtractions] = useState<StructuredDataRecord[]>([]);
     const [isLoadingSaved, setIsLoadingSaved] = useState(false);
     const [savedError, setSavedError] = useState<string | null>(null);
@@ -44,7 +48,10 @@ export default function UploadCard() {
     }
 
     function openSavedExtraction(record: StructuredDataRecord) {
-        setResult(record.structured_data);
+        setResult({
+            structuredData: record.structured_data,
+            fieldSources: {},
+        });
         setOpenResult(true);
     }
 

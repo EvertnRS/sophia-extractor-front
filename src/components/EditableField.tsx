@@ -39,6 +39,12 @@ export default function EditableField({
                 onChange={(e) => onChange(e.target.value)}
             />
 
+            {field.sourcePages && field.sourcePages.length > 0 && (
+                <p className="col-start-2 text-xs text-gray-400">
+                    Páginas: {field.sourcePages.join(", ")}
+                </p>
+            )}
+
         </div>
     );
 }

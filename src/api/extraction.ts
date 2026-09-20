@@ -17,7 +17,18 @@ export interface StructuredExtractionResponse {
   data: {
     filename: string;
     structured_data: Record<string, unknown>;
+    field_sources?: Record<string, FieldSource>;
   };
+}
+
+export interface FieldSource {
+  paginas: number[];
+  fonte: string;
+}
+
+export interface StructuredExtractionResult {
+  structuredData: Record<string, unknown>;
+  fieldSources: Record<string, FieldSource>;
 }
 
 export async function startExtraction(file: File) {
@@ -46,8 +57,12 @@ export async function getResult(jobId: string) {
 
 export async function getStructuredResult(jobId: string) {
   const response = await api.post(`/extractions/${jobId}/structured`);
-  const structuredData = (response.data as StructuredExtractionResponse)?.data
-    ?.structured_data;
+  const data = (response.data as StructuredExtractionResponse)?.data;
 
-  return structuredData ?? null;
+  if (!data?.structured_data) return null;
+
+  return {
+    structuredData: data.structured_data,
+    fieldSources: data.field_sources ?? {},
+  } satisfies StructuredExtractionResult;
 }

@@ -4,10 +4,14 @@ import EditableField from "./EditableField";
 import { flattenObject } from "../utils/flattenJson";
 import axios from "axios";
 import { createStructuredData } from "../api/structuredData";
+import type { FieldSource } from "../api/extraction";
 
 interface ResultModalProps {
     open: boolean;
-    result: Record<string, unknown> | null;
+    result: {
+        structuredData: Record<string, unknown>;
+        fieldSources: Record<string, FieldSource>;
+    } | null;
     onClose: () => void;
     onSaved?: () => Promise<void> | void;
 }
@@ -94,7 +98,12 @@ export default function ResultModal({
     }
 
     useEffect(() => {
-        setFields(flattenObject(result));
+        const extractedFields = flattenObject(result?.structuredData ?? null);
+
+        setFields(extractedFields.map(field => ({
+            ...field,
+            sourcePages: result?.fieldSources[field.path]?.paginas,
+        })));
         setCurrentPage(1);
         setSaveError(null);
         setSaveSuccess(null);
