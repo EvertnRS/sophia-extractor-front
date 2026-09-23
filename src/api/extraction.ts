@@ -36,7 +36,7 @@ export async function startExtraction(file: File) {
 
   formData.append("file", file);
 
-  const response = await api.post("/extractions", formData, {
+  const response = await api.post("/api/extractions", formData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
@@ -46,17 +46,17 @@ export async function startExtraction(file: File) {
 }
 
 export async function getStatus(jobId: string) {
-  const response = await api.get(`/extractions/${jobId}/status`);
+  const response = await api.get(`/api/extractions/${jobId}/status`);
   return response.data;
 }
 
 export async function getResult(jobId: string) {
-  const response = await api.get(`/extractions/${jobId}/result`);
+  const response = await api.get(`/api/extractions/${jobId}/result`);
   return response.data;
 }
 
 export async function getStructuredResult(jobId: string) {
-  const response = await api.post(`/extractions/${jobId}/structured`);
+  const response = await api.post(`/api/extractions/${jobId}/structured`);
   const data = (response.data as StructuredExtractionResponse)?.data;
 
   if (!data?.structured_data) return null;
