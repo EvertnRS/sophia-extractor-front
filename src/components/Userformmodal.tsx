@@ -99,22 +99,22 @@ export default function UserFormModal({
         onSubmit={handleSubmit}
         className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl"
       >
-        <h2 className="text-2xl font-bold text-[#4A3534]">
+        <h2 className="font-display text-2xl font-bold text-ink">
           {mode === "create" ? "Novo usuário" : "Editar usuário"}
         </h2>
 
-        <label className="mt-6 block text-sm font-medium text-[#4A3534]">
+        <label className="mt-6 block text-sm font-medium text-ink">
           Email
           <input
             type="email"
             autoComplete="off"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-[#B67B73]"
+            className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-maroon"
           />
         </label>
 
-        <label className="mt-5 block text-sm font-medium text-[#4A3534]">
+        <label className="mt-5 block text-sm font-medium text-ink">
           {mode === "create" ? "Senha" : "Nova senha"}
           <input
             type="password"
@@ -122,16 +122,16 @@ export default function UserFormModal({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder={mode === "edit" ? "Deixe em branco para não alterar" : ""}
-            className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-[#B67B73]"
+            className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-maroon"
           />
         </label>
 
-        <label className="mt-5 block text-sm font-medium text-[#4A3534]">
+        <label className="mt-5 block text-sm font-medium text-ink">
           Função
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-[#B67B73]"
+            className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-maroon"
           >
             <option value="user">Usuário</option>
             <option value="admin">Administrador</option>
@@ -145,7 +145,7 @@ export default function UserFormModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="rounded-full border border-gray-300 px-6 py-2 text-[#4A3534] transition hover:bg-[#F8F3F2] disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-full border border-gray-300 px-6 py-2 text-ink transition hover:bg-blush-soft disabled:cursor-not-allowed disabled:opacity-40"
           >
             Cancelar
           </button>
@@ -153,7 +153,7 @@ export default function UserFormModal({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="rounded-full bg-[#4A3534] px-6 py-2 text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-full bg-espresso px-6 py-2 text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isSubmitting ? "Salvando..." : "Salvar"}
           </button>

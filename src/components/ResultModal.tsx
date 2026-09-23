@@ -161,7 +161,7 @@ export default function ResultModal({
 
                     <div>
 
-                        <h2 className="text-2xl font-bold text-[#4A3534]">
+                        <h2 className="font-display text-2xl font-bold text-ink">
                             Resultado da Extração
                         </h2>
 
@@ -195,7 +195,7 @@ export default function ResultModal({
                                 px-4
                                 py-3
                                 outline-none
-                                focus:border-[#B67B73]
+                                focus:border-maroon
                             "
                             placeholder="Pesquisar campo..."
                             value={search}
@@ -284,7 +284,7 @@ export default function ResultModal({
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="rounded-full bg-[#4A3534] px-6 py-2 text-white"
+                        className="rounded-full bg-espresso px-6 py-2 text-white"
                     >
                         {isSaving ? "Salvando..." : "Salvar alterações"}
                     </button>

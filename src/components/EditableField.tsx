@@ -15,7 +15,7 @@ export default function EditableField({
 
             <div>
 
-                <p className="font-medium text-[#4A3534]">
+                <p className="font-medium text-ink">
                     {field.label}
                 </p>
 
@@ -33,7 +33,7 @@ export default function EditableField({
                     px-4
                     py-2
                     outline-none
-                    focus:border-[#B67B73]
+                    focus:border-maroon
                 "
                 value={field.value}
                 onChange={(e) => onChange(e.target.value)}

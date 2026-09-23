@@ -6,7 +6,7 @@ interface FullScreenMessageProps {
 
 export default function FullScreenMessage({ children }: FullScreenMessageProps) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#FCFBFA] text-[#4A3534]">
+    <div className="flex min-h-screen items-center justify-center bg-cream text-ink">
       {children}
     </div>
   );

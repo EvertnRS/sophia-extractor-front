@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+/*
+ * Paleta e tipografia extraídas do site institucional do SophIA
+ * (sophia.dotlabbrazil.com.br), a partir de prints enviados pelo cliente
+ * -- não temos acesso ao CSS de lá, então os tons são um "match" visual
+ * aproximado, não os hex exatos do design original.
+ *
+ * Como usar: cada `--color-*`/`--font-*` aqui vira uma utilidade Tailwind
+ * automaticamente (Tailwind v4, config via CSS) -- ex.: `--color-ink` gera
+ * `bg-ink`, `text-ink`, `border-ink` etc. Preferir essas classes a hex
+ * soltos tipo `bg-[#4A3534]` daqui pra frente.
+ */
+@theme {
+  --font-sans: "Nunito Sans", "Nunito", system-ui, sans-serif;
+  --font-display: "Baloo 2", "Nunito Sans", system-ui, sans-serif;
+
+  --color-cream: #fcfbfa; /* fundo geral das páginas */
+  --color-ink: #1b1210; /* títulos fortes, seção escura, texto de alto contraste */
+  --color-espresso: #3b2620; /* botões primários (CTA), wordmark "sophIA" */
+  --color-mauve: #6b4a44; /* texto de apoio/eyebrow, ícones em fundo claro */
+  --color-maroon: #7c3428; /* acento decorativo (flores/detalhes, links de destaque) */
+  --color-salmon: #f0afa0; /* rosa da ilustração -- botões/badges secundários */
+  --color-salmon-light: #f8ded7; /* tom bem claro do salmão, para hovers sutis */
+  --color-blush: #e8c8c5; /* bordas suaves */
+  --color-blush-soft: #f8f3f2; /* fundo suave (hover de cards, inputs) */
+  --color-card: #f1f0ef; /* fundo de card dentro da seção escura */
+  --color-slate: #9aa6ac; /* texto secundário sobre fundo escuro */
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+}

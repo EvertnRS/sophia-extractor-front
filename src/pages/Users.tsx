@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import axios from "axios";
 import {
   deactivateUser,
@@ -9,6 +8,7 @@ import {
 } from "../api/users";
 import { useAuth } from "../context/useAuth";
 import UserFormModal from "../components/Userformmodal";
+import AppHeader from "../components/Appheader";
 
 function extractErrorMessage(error: unknown, fallback: string): string {
   if (axios.isAxiosError(error)) {
@@ -99,15 +99,13 @@ export default function Users() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FCFBFA]">
+    <div className="min-h-screen bg-cream">
+      <AppHeader />
+
       <main className="mx-auto max-w-5xl px-6 py-16">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div>
-            <Link to="/" className="text-sm text-[#B67B73] hover:underline">
-              ← Voltar
-            </Link>
-
-            <h1 className="mt-2 text-4xl font-bold text-[#4A3534]">
+            <h1 className="font-display text-4xl font-bold text-ink">
               Gestão de usuários
             </h1>
 
@@ -118,17 +116,17 @@ export default function Users() {
 
           <button
             onClick={openCreateModal}
-            className="rounded-full bg-[#4A3534] px-6 py-3 text-white transition hover:opacity-90"
+            className="rounded-full bg-espresso px-6 py-3 text-white transition hover:opacity-90"
           >
             Novo usuário
           </button>
         </div>
 
-        <div className="mt-10 overflow-hidden rounded-3xl border border-[#E8C8C5] bg-white">
+        <div className="mt-10 overflow-hidden rounded-3xl border border-blush bg-white">
           {loadError && <p className="p-6 text-sm text-red-600">{loadError}</p>}
 
           {actionError && (
-            <p className="border-b border-[#E8C8C5] bg-red-50 p-4 text-sm text-red-600">
+            <p className="border-b border-blush bg-red-50 p-4 text-sm text-red-600">
               {actionError}
             </p>
           )}
@@ -144,7 +142,7 @@ export default function Users() {
           {!loadError && users.length > 0 && (
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-[#E8C8C5] text-gray-500">
+                <tr className="border-b border-blush text-gray-500">
                   <th className="px-6 py-4 font-medium">Email</th>
                   <th className="px-6 py-4 font-medium">Função</th>
                   <th className="px-6 py-4 font-medium">Status</th>
@@ -155,7 +153,7 @@ export default function Users() {
               <tbody>
                 {users.map((user) => (
                   <tr key={user.id} className="border-b border-[#F1E4E3] last:border-0">
-                    <td className="px-6 py-4 text-[#4A3534]">
+                    <td className="px-6 py-4 text-ink">
                       {user.email}
                       {user.id === currentUser?.id && (
                         <span className="ml-2 text-xs text-gray-400">(você)</span>
@@ -182,7 +180,7 @@ export default function Users() {
                       <div className="flex gap-3">
                         <button
                           onClick={() => openEditModal(user)}
-                          className="text-[#B67B73] hover:underline"
+                          className="text-maroon hover:underline"
                         >
                           Editar
                         </button>
@@ -190,7 +188,7 @@ export default function Users() {
                         <button
                           onClick={() => toggleActive(user)}
                           disabled={pendingActionUserId === user.id}
-                          className="text-[#B67B73] hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                          className="text-maroon hover:underline disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {user.is_active ? "Desativar" : "Ativar"}
                         </button>

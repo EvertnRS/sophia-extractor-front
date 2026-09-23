@@ -16,7 +16,7 @@ export default function ProgressBar({
       ? "bg-green-500"
       : status === "failed"
       ? "bg-red-500"
-      : "bg-[#4A3534]";
+      : "bg-espresso";
 
   const label =
     status === "completed"
@@ -30,9 +30,9 @@ export default function ProgressBar({
       : status;
 
   return (
-    <div className="mt-8 rounded-2xl border border-[#E8C8C5] bg-[#FCFBFA] p-5">
+    <div className="mt-8 rounded-2xl border border-blush bg-cream p-5">
       <div className="mb-3 flex items-center justify-between gap-4 text-sm text-gray-600">
-        <span className="font-medium text-[#4A3534]">{label}</span>
+        <span className="font-medium text-ink">{label}</span>
         <span>{Math.min(100, Math.max(0, progress))}%</span>
       </div>
 
