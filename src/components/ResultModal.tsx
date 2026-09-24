@@ -2,6 +2,8 @@ import type { EditableField as EditableFieldType } from "../types/editableLabel"
 import { useEffect, useMemo, useState } from "react";
 import EditableField from "./EditableField";
 import { flattenObject } from "../utils/flattenJson";
+import { getFieldLabel } from "../data/fieldLabels";
+import { normalizeFieldKey } from "../data/fieldDescriptions";
 import axios from "axios";
 import { createStructuredData } from "../api/structuredData";
 import type { FieldSource } from "../api/extraction";
@@ -119,11 +121,13 @@ export default function ResultModal({
             return fields;
         }
 
-        const query = search.toLowerCase();
+        // Ignora acentos e maiúsculas: "gestacao" acha "Gestação múltipla".
+        const query = normalizeFieldKey(search);
 
         return fields.filter(field =>
-            field.label.toLowerCase().includes(query) ||
-            field.path.toLowerCase().includes(query)
+            normalizeFieldKey(field.label).includes(query) ||
+            normalizeFieldKey(getFieldLabel(field.path, field.label)).includes(query) ||
+            normalizeFieldKey(field.path).includes(query)
         );
 
     }, [fields, search]);
