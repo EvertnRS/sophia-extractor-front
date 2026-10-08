@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, matchPath, useLocation } from "react-router-dom";
-import { House, Users, type LucideIcon } from "lucide-react";
+import { Activity, House, Users, type LucideIcon } from "lucide-react";
 import { useAuth } from "../context/useAuth";
 
 interface NavItem {
@@ -12,6 +12,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Home", icon: House },
+  { to: "/predicao", label: "Predição", icon: Activity },
   { to: "/admin/usuarios", label: "Gestão de usuários", icon: Users, adminOnly: true },
 ];
 

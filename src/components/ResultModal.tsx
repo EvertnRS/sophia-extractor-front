@@ -5,8 +5,9 @@ import { flattenObject } from "../utils/flattenJson";
 import { getFieldLabel } from "../data/fieldLabels";
 import { normalizeFieldKey } from "../data/fieldDescriptions";
 import axios from "axios";
-import { createStructuredData } from "../api/structuredData";
+import { createStructuredData, updateStructuredData } from "../api/structuredData";
 import type { FieldSource } from "../api/extraction";
+import { Link } from "react-router-dom";
 
 interface ResultModalProps {
     open: boolean;
@@ -14,6 +15,11 @@ interface ResultModalProps {
         structuredData: Record<string, unknown>;
         fieldSources: Record<string, FieldSource>;
     } | null;
+    // Preenchido quando o modal abre um registro JÁ SALVO (lista "Extrações
+    // salvas"): salvar passa a ser um update desse registro (com o dono dele,
+    // para admin) e a predição usa o mesmo dnv/dono. Null para um resultado
+    // recém-extraído, que ainda não foi salvo.
+    savedRecord?: { dnv: string; ownerId: string | null } | null;
     onClose: () => void;
     onSaved?: () => Promise<void> | void;
 }
@@ -22,6 +28,7 @@ export default function ResultModal({
     open,
     onClose,
     result,
+    savedRecord,
     onSaved,
 }: ResultModalProps) {
     const [fields, setFields] = useState<EditableFieldType[]>([]);
@@ -31,6 +38,15 @@ export default function ResultModal({
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+    // Registro salvo por este modal: alimenta o atalho para a tela de
+    // predição (a predição em si agora vive em /predicao, não aqui).
+    const [savedTarget, setSavedTarget] = useState<{
+        dnv: string;
+        ownerId: string | null;
+    } | null>(null);
+    // dnv criado por este modal (POST /create) -- dali em diante, salvar de
+    // novo é um update, não uma nova criação (que daria 409).
+    const [createdDnv, setCreatedDnv] = useState<string | null>(null);
 
     function buildStructuredDataFromFields(editableFields: EditableFieldType[]) {
         const structuredData: Record<string, unknown> = {};
@@ -74,16 +90,62 @@ export default function ResultModal({
 
             structuredData.dnv = dnvValue.trim();
 
+            // Registro que já existe no banco: update, nunca create (o
+            // create responderia 409 e a edição se perderia).
+            const existing =
+                savedRecord ?? (createdDnv ? { dnv: createdDnv, ownerId: null } : null);
+
+            if (existing && existing.dnv !== structuredData.dnv) {
+                // O update é pelo dnv do registro salvo, e o backend não
+                // renomeia o dnv: aceitar a edição deixaria a coluna `dnv`
+                // diferente do dnv dentro dos dados.
+                setSaveError("Não é possível alterar o DNV de um registro já salvo.");
+                return;
+            }
+
             setIsSaving(true);
-            await createStructuredData(structuredData);
+
+            if (existing) {
+                await updateStructuredData(
+                    existing.dnv,
+                    structuredData,
+                    existing.ownerId ?? undefined
+                );
+            } else {
+                try {
+                    await createStructuredData(structuredData);
+                    setCreatedDnv(structuredData.dnv as string);
+                } catch (error) {
+                    // Já existe um registro seu com esse dnv (ex.: salvo em
+                    // outra sessão): atualiza em vez de recusar.
+                    if (axios.isAxiosError(error) && error.response?.status === 409) {
+                        await updateStructuredData(structuredData.dnv as string, structuredData);
+                        setCreatedDnv(structuredData.dnv as string);
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+
             setSaveSuccess("Dados salvos com sucesso.");
+            setSavedTarget({
+                dnv: structuredData.dnv as string,
+                ownerId: existing?.ownerId ?? null,
+            });
             await onSaved?.();
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const status = error.response?.status;
 
                 if (status === 409) {
-                    setSaveError("Já existe um registro com esse dnv.");
+                    setSaveError(
+                        "Este DNV existe para mais de um usuário. Abra o registro pela lista de extrações salvas."
+                    );
+                    return;
+                }
+
+                if (status === 404) {
+                    setSaveError("O registro salvo não foi encontrado.");
                     return;
                 }
 
@@ -109,6 +171,8 @@ export default function ResultModal({
         setCurrentPage(1);
         setSaveError(null);
         setSaveSuccess(null);
+        setSavedTarget(null);
+        setCreatedDnv(null);
     }, [result]);
 
     useEffect(() => {
@@ -274,7 +338,25 @@ export default function ResultModal({
                     )}
 
                     {saveSuccess && (
-                        <p className="mr-auto self-center text-sm text-green-700">{saveSuccess}</p>
+                        <p className="mr-auto self-center text-sm text-green-700">
+                            {saveSuccess}
+                            {savedTarget && (
+                                <>
+                                    {" "}
+                                    <Link
+                                        to={`/predicao?${new URLSearchParams({
+                                            dnv: savedTarget.dnv,
+                                            ...(savedTarget.ownerId
+                                                ? { owner: savedTarget.ownerId }
+                                                : {}),
+                                        }).toString()}`}
+                                        className="font-semibold text-maroon underline"
+                                    >
+                                        Calcular predição →
+                                    </Link>
+                                </>
+                            )}
+                        </p>
                     )}
 
                     <button

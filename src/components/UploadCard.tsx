@@ -29,6 +29,11 @@ export default function UploadCard() {
     const [savedError, setSavedError] = useState<string | null>(null);
 
     const [openResult, setOpenResult] = useState(false);
+    // Registro salvo aberto no modal (null para um resultado recém-extraído).
+    const [resultSavedRecord, setResultSavedRecord] = useState<{
+        dnv: string;
+        ownerId: string | null;
+    } | null>(null);
 
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -52,6 +57,7 @@ export default function UploadCard() {
             structuredData: record.structured_data,
             fieldSources: {},
         });
+        setResultSavedRecord({ dnv: record.dnv, ownerId: record.owner_id });
         setOpenResult(true);
     }
 
@@ -137,6 +143,7 @@ export default function UploadCard() {
             if (status.status === "completed") {
                 const extractionResult = await getStructuredResult(status.job_id);
                 setResult(extractionResult);
+                setResultSavedRecord(null);
                 setOpenResult(true);
             }
         } catch (err) {
@@ -160,6 +167,7 @@ export default function UploadCard() {
             console.log("Resultado da extração:", extractionResult);
 
             setResult(extractionResult);
+            setResultSavedRecord(null);
 
             setOpenResult(true);
 
@@ -319,6 +327,7 @@ export default function UploadCard() {
                 <ResultModal
                     open={openResult}
                     result={result}
+                    savedRecord={resultSavedRecord}
                     onClose={() => setOpenResult(false)}
                     onSaved={loadSavedExtractions}
                 />   
