@@ -6,15 +6,16 @@ import { getFieldLabel } from "../data/fieldLabels";
 import { normalizeFieldKey } from "../data/fieldDescriptions";
 import axios from "axios";
 import { createStructuredData, updateStructuredData } from "../api/structuredData";
-import type { FieldSource } from "../api/extraction";
+import type { StructuredExtractionResult } from "../api/extraction";
+import { describeFieldConfidence } from "../data/confidence";
+import QualityPanel from "./QualityPanel";
 import { Link } from "react-router-dom";
 
 interface ResultModalProps {
     open: boolean;
-    result: {
-        structuredData: Record<string, unknown>;
-        fieldSources: Record<string, FieldSource>;
-    } | null;
+    // `quality` e a confiança por campo são opcionais: registros salvos e
+    // backends sem o bloco abrem normalmente, só que sem selos nem painel.
+    result: StructuredExtractionResult | null;
     // Preenchido quando o modal abre um registro JÁ SALVO (lista "Extrações
     // salvas"): salvar passa a ser um update desse registro (com o dono dele,
     // para admin) e a predição usa o mesmo dnv/dono. Null para um resultado
@@ -35,6 +36,8 @@ export default function ResultModal({
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
     const [search, setSearch] = useState("");
+    // Foco da fila "conferir primeiro": chaves exatas (null = lista completa).
+    const [focusKeys, setFocusKeys] = useState<string[] | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
@@ -167,8 +170,10 @@ export default function ResultModal({
         setFields(extractedFields.map(field => ({
             ...field,
             sourcePages: result?.fieldSources[field.path]?.paginas,
+            confidence: describeFieldConfidence(result?.fieldSources[field.path]),
         })));
         setCurrentPage(1);
+        setFocusKeys(null);
         setSaveError(null);
         setSaveSuccess(null);
         setSavedTarget(null);
@@ -177,24 +182,29 @@ export default function ResultModal({
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [search]);
+    }, [search, focusKeys]);
 
     const filteredFields = useMemo(() => {
 
+        // O foco da fila vem antes da busca; a busca ainda refina dentro dele.
+        const base = focusKeys
+            ? fields.filter(field => focusKeys.includes(field.path))
+            : fields;
+
         if (!search.trim()) {
-            return fields;
+            return base;
         }
 
         // Ignora acentos e maiúsculas: "gestacao" acha "Gestação múltipla".
         const query = normalizeFieldKey(search);
 
-        return fields.filter(field =>
+        return base.filter(field =>
             normalizeFieldKey(field.label).includes(query) ||
             normalizeFieldKey(getFieldLabel(field.path, field.label)).includes(query) ||
             normalizeFieldKey(field.path).includes(query)
         );
 
-    }, [fields, search]);
+    }, [fields, search, focusKeys]);
 
     const totalPages = Math.max(1, Math.ceil(filteredFields.length / itemsPerPage));
     const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -251,6 +261,14 @@ export default function ResultModal({
                 {/* Conteúdo */}
 
                 <div className="flex-1 overflow-y-auto p-8">
+
+                    <QualityPanel
+                        structuredData={result.structuredData}
+                        fieldSources={result.fieldSources}
+                        quality={result.quality}
+                        focusKeys={focusKeys}
+                        onFocus={setFocusKeys}
+                    />
 
                     <div className="mb-6">
 

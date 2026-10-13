@@ -1,6 +1,7 @@
 import type { EditableField } from "../types/editableLabel";
 import { getFieldDescription } from "../data/fieldDescriptions";
 import { getFieldLabel } from "../data/fieldLabels";
+import ConfidenceBadge from "./Confidencebadge";
 
 interface Props {
     field: EditableField;
@@ -106,6 +107,12 @@ export default function EditableField({
                 <p className="mt-1 text-xs text-gray-400">
                     {field.path}
                 </p>
+
+                {field.confidence && (
+                    <div className="mt-1.5">
+                        <ConfidenceBadge confidence={field.confidence} />
+                    </div>
+                )}
 
             </div>
 

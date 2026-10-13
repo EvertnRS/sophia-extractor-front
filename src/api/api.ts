@@ -1,11 +1,19 @@
 import axios from "axios";
 import { getToken } from "./authStorage";
+import { MOCK_API_BASE } from "../mocks/config";
 
 // Um único cliente axios para toda a API (extração em `/api/...` e CRUD de
 // dados estruturados em `/...`, ambos no mesmo host) -- centraliza aqui a
 // injeção do token e o tratamento de sessão expirada/revogada, em vez de
 // duplicar isso em cada arquivo de api/*.ts.
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+//
+// Modo mock (`npm run dev:mock`): em vez do backend, as chamadas vão para um
+// caminho do próprio site que o MSW responde com dados sintéticos
+// (ver src/mocks/ e o README).
+const useMock = import.meta.env.VITE_USE_MOCK === "true";
+const baseURL = useMock
+  ? MOCK_API_BASE
+  : (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000");
 
 export const api = axios.create({ baseURL });
 
