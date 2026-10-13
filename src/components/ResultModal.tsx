@@ -2,12 +2,25 @@ import type { EditableField as EditableFieldType } from "../types/editableLabel"
 import { useEffect, useMemo, useState } from "react";
 import EditableField from "./EditableField";
 import { flattenObject } from "../utils/flattenJson";
+import { getFieldLabel } from "../data/fieldLabels";
+import { normalizeFieldKey } from "../data/fieldDescriptions";
 import axios from "axios";
-import { createStructuredData } from "../api/structuredData";
+import { createStructuredData, updateStructuredData } from "../api/structuredData";
+import type { StructuredExtractionResult } from "../api/extraction";
+import { describeFieldConfidence } from "../data/confidence";
+import QualityPanel from "./QualityPanel";
+import { Link } from "react-router-dom";
 
 interface ResultModalProps {
     open: boolean;
-    result: Record<string, unknown> | null;
+    // `quality` e a confiança por campo são opcionais: registros salvos e
+    // backends sem o bloco abrem normalmente, só que sem selos nem painel.
+    result: StructuredExtractionResult | null;
+    // Preenchido quando o modal abre um registro JÁ SALVO (lista "Extrações
+    // salvas"): salvar passa a ser um update desse registro (com o dono dele,
+    // para admin) e a predição usa o mesmo dnv/dono. Null para um resultado
+    // recém-extraído, que ainda não foi salvo.
+    savedRecord?: { dnv: string; ownerId: string | null } | null;
     onClose: () => void;
     onSaved?: () => Promise<void> | void;
 }
@@ -16,15 +29,27 @@ export default function ResultModal({
     open,
     onClose,
     result,
+    savedRecord,
     onSaved,
 }: ResultModalProps) {
     const [fields, setFields] = useState<EditableFieldType[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
     const [search, setSearch] = useState("");
+    // Foco da fila "conferir primeiro": chaves exatas (null = lista completa).
+    const [focusKeys, setFocusKeys] = useState<string[] | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+    // Registro salvo por este modal: alimenta o atalho para a tela de
+    // predição (a predição em si agora vive em /predicao, não aqui).
+    const [savedTarget, setSavedTarget] = useState<{
+        dnv: string;
+        ownerId: string | null;
+    } | null>(null);
+    // dnv criado por este modal (POST /create) -- dali em diante, salvar de
+    // novo é um update, não uma nova criação (que daria 409).
+    const [createdDnv, setCreatedDnv] = useState<string | null>(null);
 
     function buildStructuredDataFromFields(editableFields: EditableFieldType[]) {
         const structuredData: Record<string, unknown> = {};
@@ -68,16 +93,62 @@ export default function ResultModal({
 
             structuredData.dnv = dnvValue.trim();
 
+            // Registro que já existe no banco: update, nunca create (o
+            // create responderia 409 e a edição se perderia).
+            const existing =
+                savedRecord ?? (createdDnv ? { dnv: createdDnv, ownerId: null } : null);
+
+            if (existing && existing.dnv !== structuredData.dnv) {
+                // O update é pelo dnv do registro salvo, e o backend não
+                // renomeia o dnv: aceitar a edição deixaria a coluna `dnv`
+                // diferente do dnv dentro dos dados.
+                setSaveError("Não é possível alterar o DNV de um registro já salvo.");
+                return;
+            }
+
             setIsSaving(true);
-            await createStructuredData(structuredData);
+
+            if (existing) {
+                await updateStructuredData(
+                    existing.dnv,
+                    structuredData,
+                    existing.ownerId ?? undefined
+                );
+            } else {
+                try {
+                    await createStructuredData(structuredData);
+                    setCreatedDnv(structuredData.dnv as string);
+                } catch (error) {
+                    // Já existe um registro seu com esse dnv (ex.: salvo em
+                    // outra sessão): atualiza em vez de recusar.
+                    if (axios.isAxiosError(error) && error.response?.status === 409) {
+                        await updateStructuredData(structuredData.dnv as string, structuredData);
+                        setCreatedDnv(structuredData.dnv as string);
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+
             setSaveSuccess("Dados salvos com sucesso.");
+            setSavedTarget({
+                dnv: structuredData.dnv as string,
+                ownerId: existing?.ownerId ?? null,
+            });
             await onSaved?.();
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const status = error.response?.status;
 
                 if (status === 409) {
-                    setSaveError("Já existe um registro com esse dnv.");
+                    setSaveError(
+                        "Este DNV existe para mais de um usuário. Abra o registro pela lista de extrações salvas."
+                    );
+                    return;
+                }
+
+                if (status === 404) {
+                    setSaveError("O registro salvo não foi encontrado.");
                     return;
                 }
 
@@ -94,30 +165,46 @@ export default function ResultModal({
     }
 
     useEffect(() => {
-        setFields(flattenObject(result));
+        const extractedFields = flattenObject(result?.structuredData ?? null);
+
+        setFields(extractedFields.map(field => ({
+            ...field,
+            sourcePages: result?.fieldSources[field.path]?.paginas,
+            confidence: describeFieldConfidence(result?.fieldSources[field.path]),
+        })));
         setCurrentPage(1);
+        setFocusKeys(null);
         setSaveError(null);
         setSaveSuccess(null);
+        setSavedTarget(null);
+        setCreatedDnv(null);
     }, [result]);
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [search]);
+    }, [search, focusKeys]);
 
     const filteredFields = useMemo(() => {
 
+        // O foco da fila vem antes da busca; a busca ainda refina dentro dele.
+        const base = focusKeys
+            ? fields.filter(field => focusKeys.includes(field.path))
+            : fields;
+
         if (!search.trim()) {
-            return fields;
+            return base;
         }
 
-        const query = search.toLowerCase();
+        // Ignora acentos e maiúsculas: "gestacao" acha "Gestação múltipla".
+        const query = normalizeFieldKey(search);
 
-        return fields.filter(field =>
-            field.label.toLowerCase().includes(query) ||
-            field.path.toLowerCase().includes(query)
+        return base.filter(field =>
+            normalizeFieldKey(field.label).includes(query) ||
+            normalizeFieldKey(getFieldLabel(field.path, field.label)).includes(query) ||
+            normalizeFieldKey(field.path).includes(query)
         );
 
-    }, [fields, search]);
+    }, [fields, search, focusKeys]);
 
     const totalPages = Math.max(1, Math.ceil(filteredFields.length / itemsPerPage));
     const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -152,7 +239,7 @@ export default function ResultModal({
 
                     <div>
 
-                        <h2 className="text-2xl font-bold text-[#4A3534]">
+                        <h2 className="font-display text-2xl font-bold text-ink">
                             Resultado da Extração
                         </h2>
 
@@ -175,6 +262,14 @@ export default function ResultModal({
 
                 <div className="flex-1 overflow-y-auto p-8">
 
+                    <QualityPanel
+                        structuredData={result.structuredData}
+                        fieldSources={result.fieldSources}
+                        quality={result.quality}
+                        focusKeys={focusKeys}
+                        onFocus={setFocusKeys}
+                    />
+
                     <div className="mb-6">
 
                         <input
@@ -186,7 +281,7 @@ export default function ResultModal({
                                 px-4
                                 py-3
                                 outline-none
-                                focus:border-[#B67B73]
+                                focus:border-maroon
                             "
                             placeholder="Pesquisar campo..."
                             value={search}
@@ -261,7 +356,25 @@ export default function ResultModal({
                     )}
 
                     {saveSuccess && (
-                        <p className="mr-auto self-center text-sm text-green-700">{saveSuccess}</p>
+                        <p className="mr-auto self-center text-sm text-green-700">
+                            {saveSuccess}
+                            {savedTarget && (
+                                <>
+                                    {" "}
+                                    <Link
+                                        to={`/predicao?${new URLSearchParams({
+                                            dnv: savedTarget.dnv,
+                                            ...(savedTarget.ownerId
+                                                ? { owner: savedTarget.ownerId }
+                                                : {}),
+                                        }).toString()}`}
+                                        className="font-semibold text-maroon underline"
+                                    >
+                                        Calcular predição →
+                                    </Link>
+                                </>
+                            )}
+                        </p>
                     )}
 
                     <button
@@ -275,7 +388,7 @@ export default function ResultModal({
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="rounded-full bg-[#4A3534] px-6 py-2 text-white"
+                        className="rounded-full bg-espresso px-6 py-2 text-white"
                     >
                         {isSaving ? "Salvando..." : "Salvar alterações"}
                     </button>
