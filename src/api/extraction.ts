@@ -34,6 +34,19 @@ export interface FieldSignals {
   // Por que o campo não tem faixa (faixa null).
   motivo_sem_faixa?: string;
   votos_contrarios?: number;
+  // Origem SEM faixa (WP-C5): "sem_mencao" (silêncio do GLiNER), "regex" ou
+  // "padrao_clinico". O rótulo faz o papel do motivo_sem_faixa.
+  rotulo?: string;
+  // Campo SEM valor, mas com leitura do vazio (WP-C0/WP-C3): "em_branco"
+  // (a faixa mede a folga do vazio) ou "nao_localizado" (sem faixa).
+  motivo_sem_valor?: string;
+  // Derivado com teto `media`: origens que não tinham faixa (WP-C6).
+  origens_sem_faixa?: string[];
+  // GLiNER booleano rebaixado uma faixa (WP-C4): "voto_contrario", "voto_unico".
+  rebaixe?: string[];
+  // Em branco em cascata: faixa `alta` limitada a `media` (WP-C3, Q9).
+  teto_faixa?: string;
+  fontes_nao_localizadas?: string[];
   [key: string]: unknown;
 }
 
@@ -66,8 +79,26 @@ export interface QualityPages {
   [key: string]: unknown;
 }
 
+// Contagens do bloco `quality.campos` (WP-C7). A tela calcula as suas no
+// cliente, a partir dos campos, para nunca discordar da lista; estes tipos só
+// descrevem o contrato.
+export interface QualityFields {
+  por_faixa?: Record<string, number>;
+  // Campos SEM valor com leitura do vazio, por faixa (+ não localizado).
+  sem_resposta_por_faixa?: {
+    alta: number;
+    media: number;
+    baixa: number;
+    nao_localizado: number;
+  };
+  // Campos COM valor de origem sem faixa, por rótulo.
+  por_rotulo?: { sem_mencao: number; regex: number; padrao_clinico: number };
+  [key: string]: unknown;
+}
+
 export interface QualityBlock {
   confidence_version?: string;
+  campos?: QualityFields | null;
   faixa_documento?: ConfidenceBand | null;
   faixa_documento_motivos?: QualityReason[] | null;
   paginas?: QualityPages | null;

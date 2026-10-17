@@ -109,6 +109,26 @@ function num(value: unknown, fallback: number): number {
     return Number.isFinite(parsed) && String(value ?? "").trim() !== "" ? parsed : fallback;
 }
 
+// Espelha o contrato do backend (WP-07 a WP-09): probabilidade AJUSTADA à
+// prevalência-alvo, faixa por cortes provisórios e gate de completude. Os
+// números são de demonstração; só a FORMA do contrato importa aqui.
+const DEMO_PRIOR = 0.188;
+const DEMO_BAND_CUTOFFS: [number, number] = [0.15, 0.35];
+const DEMO_CORE_FIELDS = [
+    "idade_semanal_gestacional", "tp_parto", "surfactante",
+    "hemorragia_intracraniana", "vent_mecanica_dias",
+];
+
+function adjustPrevalence(p: number, prior: number): number {
+    return (p * prior) / (p * prior + (1 - p) * (1 - prior));
+}
+
+function demoRiskBand(adjusted: number): "baixo" | "moderado" | "alto" {
+    if (adjusted < DEMO_BAND_CUTOFFS[0]) return "baixo";
+    if (adjusted < DEMO_BAND_CUTOFFS[1]) return "moderado";
+    return "alto";
+}
+
 function buildPrediction(record: MockRecord): MockPrediction {
     const data = record.structured_data;
     const sepse = data.sepse === "Sim" ? 1 : 0;
@@ -121,27 +141,53 @@ function buildPrediction(record: MockRecord): MockPrediction {
         (7 - num(data.apgar_5min, 7)) * 0.3 +
         sepse +
         (ventDays > 0 ? 0.5 : 0);
-    const probability = 1 / (1 + Math.exp(-z));
+    const raw = 1 / (1 + Math.exp(-z));
+    const adjusted = adjustPrevalence(raw, DEMO_PRIOR);
 
     const missing = MODEL_FEATURES.filter((key) => String(data[key] ?? "").trim() === "");
+    const coreMissing = DEMO_CORE_FIELDS.filter(
+        (key) => String(data[key] ?? "").trim() === "",
+    );
+    // Mesmos limites do backend: 0 ok, 1 a 3 incompleto, mais de 3 insuficiente.
+    const dataQuality =
+        coreMissing.length === 0 ? "ok" : coreMissing.length <= 3 ? "incompleto" : "insuficiente";
 
-    return {
+    const common = {
         dnv: record.dnv,
         owner_id: record.owner_id,
         model_name: "modelo-demonstracao",
         model_version: "0.0.0",
         preprocessing_version: "demo",
-        status: "success",
-        predicted_class: probability >= 0.5 ? 1 : 0,
-        predicted_probability: Number(probability.toFixed(4)),
         features_filled: MODEL_FEATURES.length - missing.length,
         features_total: MODEL_FEATURES.length,
         missing_features: missing,
+        core_features_missing: coreMissing,
+        data_quality: dataQuality,
+        reference_time: record.updated_at.slice(0, 10),
         disclaimer:
             "Resultado gerado com dados sintéticos (modo demonstração). Não use para decisões clínicas.",
         is_stale: false,
         created_at: nowIso(),
         source_updated_at: record.updated_at,
+    } as const;
+
+    if (dataQuality === "insuficiente") {
+        // Sem probabilidade, classe nem faixa: o modelo não é chamado.
+        return { ...common, status: "insufficient_data" };
+    }
+
+    return {
+        ...common,
+        status: "success",
+        predicted_class: raw >= 0.5 ? 1 : 0,
+        predicted_probability: Number(adjusted.toFixed(4)),
+        risk_band: demoRiskBand(adjusted),
+        calibration: {
+            method: "prior_shift",
+            prior: DEMO_PRIOR,
+            band_cutoffs: DEMO_BAND_CUTOFFS,
+            provisional: true,
+        },
     };
 }
 

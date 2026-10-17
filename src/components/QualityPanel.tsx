@@ -6,6 +6,7 @@ import {
     CALIBRATION_NOTICE,
     LEGEND,
     countBadges,
+    countNoAnswer,
     describeDocument,
     describeFieldConfidence,
     describePages,
@@ -21,7 +22,13 @@ interface Props {
     onFocus: (keys: string[] | null) => void;
 }
 
-const COUNT_ORDER: BadgeKind[] = ["baixa", "media", "alta", "sem_mencao", "sem_avaliacao"];
+const COUNT_ORDER: BadgeKind[] = [
+    "baixa",
+    "media",
+    "alta",
+    "sem_mencao",
+    "sem_avaliacao",
+];
 
 function Pill({ kind, children }: { kind: BadgeKind; children: React.ReactNode }) {
     return (
@@ -47,14 +54,19 @@ export default function QualityPanel({
     onFocus,
 }: Props) {
     const { counts, evaluated } = countBadges(structuredData, fieldSources);
+    const { counts: noAnswer, total: noAnswerTotal } = countNoAnswer(
+        structuredData,
+        fieldSources
+    );
 
-    if (!quality && evaluated === 0) return null;
+    if (!quality && evaluated === 0 && noAnswerTotal === 0) return null;
 
     const documentSummary = describeDocument(quality);
     const pagesText = describePages(quality);
 
-    // Só chaves que existem e têm valor entram na fila: a lista de campos
-    // não mostraria um campo sem valor como alvo útil.
+    // Só chaves que existem em `structured_data` entram na fila. Um campo em
+    // branco `baixa` ("quase marcado") também está lá, com valor `null`, e é
+    // alvo útil: o risco é uma marcação perdida (WP-C7).
     const review = (quality?.campos_para_revisar ?? []).filter(
         (key): key is string => typeof key === "string" && key in structuredData
     );
@@ -97,6 +109,50 @@ export default function QualityPanel({
                             <span className="font-bold">{counts[kind]}</span>
                         </Pill>
                     ))}
+                </div>
+            )}
+
+            {noAnswerTotal > 0 && (
+                <div className="mt-4">
+                    <h4 className="text-sm font-semibold text-ink">
+                        Campos sem resposta
+                    </h4>
+                    <p className="mt-1 text-xs text-gray-500">
+                        Ficaram em branco. A faixa mede o quanto o vazio é
+                        claro; não é um valor lido.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                        {noAnswer.quase_marcado > 0 && (
+                            <Pill kind="baixa">
+                                Quase marcado
+                                <span className="font-bold">{noAnswer.quase_marcado}</span>
+                            </Pill>
+                        )}
+                        {noAnswer.nao_localizado > 0 && (
+                            <Pill kind="sem_avaliacao">
+                                Não localizado
+                                <span className="font-bold">{noAnswer.nao_localizado}</span>
+                            </Pill>
+                        )}
+                        {noAnswer.media > 0 && (
+                            <Pill kind="sem_avaliacao">
+                                Em branco (média)
+                                <span className="font-bold">{noAnswer.media}</span>
+                            </Pill>
+                        )}
+                        {noAnswer.alta > 0 && (
+                            <Pill kind="sem_avaliacao">
+                                Em branco (alta)
+                                <span className="font-bold">{noAnswer.alta}</span>
+                            </Pill>
+                        )}
+                        {noAnswer.outro > 0 && (
+                            <Pill kind="sem_avaliacao">
+                                Outros
+                                <span className="font-bold">{noAnswer.outro}</span>
+                            </Pill>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -150,6 +206,11 @@ export default function QualityPanel({
                                     >
                                         <span className="mr-1 font-bold">{index + 1}.</span>
                                         {label}
+                                        {badge?.noAnswer && badge.kind === "baixa" && (
+                                            <span className="ml-1 font-normal">
+                                                (sem resposta, quase marcado)
+                                            </span>
+                                        )}
                                     </button>
                                 </li>
                             );

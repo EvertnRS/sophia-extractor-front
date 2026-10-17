@@ -127,6 +127,7 @@ export default function EditableField({
                     focus:border-maroon
                 "
                 value={field.value}
+                placeholder="Sem resposta"
                 onChange={(e) => onChange(e.target.value)}
             />
 

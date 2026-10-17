@@ -67,6 +67,25 @@ export default function PredictionPanel({ dnv, ownerId }: Props) {
     const isPositive = isSuccess && prediction.predicted_class === 1;
     const missing = prediction?.missing_features ?? [];
     const calculatedAt = formatDateTime(prediction?.created_at);
+    const isInsufficient = prediction?.status === "insufficient_data";
+    const coreMissing = prediction?.core_features_missing ?? [];
+
+    // O percentual é a probabilidade AJUSTADA à prevalência-alvo; a classe sai
+    // da saída bruta. Sem `calibration` (backend antigo) vale a legenda antiga.
+    const prior = prediction?.calibration?.prior;
+    const priorText =
+        typeof prior === "number"
+            ? `${(Math.round(prior * 1000) / 10).toLocaleString("pt-BR")}%`
+            : null;
+
+    // `model_version` vem como "<biblioteca> <versão> sha256:<hash>": mostra o
+    // hash só pelos 8 primeiros caracteres.
+    const modelVersion = prediction?.model_version
+        ? prediction.model_version.replace(
+            /sha256:([0-9a-f]{8})[0-9a-f]*/i,
+            "$1"
+        )
+        : null;
 
     return (
         <section className="rounded-2xl border border-blush bg-blush-soft p-6">
@@ -126,6 +145,28 @@ export default function PredictionPanel({ dnv, ownerId }: Props) {
                 </p>
             )}
 
+            {isInsufficient && (
+                <div className="mt-4">
+                    <p className="text-sm text-gray-600">
+                        Dados insuficientes: faltam variáveis centrais do
+                        modelo, então nenhum risco foi estimado.
+                    </p>
+
+                    {coreMissing.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {coreMissing.map((name) => (
+                                <span
+                                    key={name}
+                                    className="rounded-full border border-blush bg-white px-3 py-1 text-xs"
+                                >
+                                    {name}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {isSuccess && (
                 <div className="mt-6">
 
@@ -167,7 +208,13 @@ export default function PredictionPanel({ dnv, ownerId }: Props) {
                     </div>
 
                     <p className="mt-1 text-xs text-gray-400">
-                        Classe positiva = probabilidade ≥ 50%.
+                        {priorText
+                            ? `Ajustada para prevalência de ${priorText}${
+                                  prediction.calibration?.provisional
+                                      ? " (provisório)"
+                                      : ""
+                              }; não é o risco real. Classe positiva = saída bruta do modelo ≥ 50%.`
+                            : "Classe positiva = probabilidade ≥ 50%."}
                     </p>
 
                     {prediction.features_total !== null && (
@@ -206,9 +253,7 @@ export default function PredictionPanel({ dnv, ownerId }: Props) {
 
                     <p className="mt-2 text-xs text-gray-400">
                         Modelo {prediction.model_name}
-                        {prediction.model_version
-                            ? ` v${prediction.model_version}`
-                            : ""}
+                        {modelVersion ? ` (${modelVersion})` : ""}
                         {calculatedAt ? ` · calculado em ${calculatedAt}` : ""}
                     </p>
 
