@@ -163,7 +163,6 @@ function buildPrediction(record: MockRecord): MockPrediction {
         missing_features: missing,
         core_features_missing: coreMissing,
         data_quality: dataQuality,
-        reference_time: record.updated_at.slice(0, 10),
         disclaimer:
             "Resultado gerado com dados sintéticos (modo demonstração). Não use para decisões clínicas.",
         is_stale: false,

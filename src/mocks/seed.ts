@@ -439,7 +439,6 @@ export function createSeedDb(): MockDb {
                 },
                 core_features_missing: [],
                 data_quality: "ok",
-                reference_time: isoDaysAgo(3).slice(0, 10),
                 features_filled: 22,
                 features_total: 24,
                 missing_features: ["tempo_cateter_umbilical_arterial_dias", "hr_vida_primeira_dose_surfactante"],

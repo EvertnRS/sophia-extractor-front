@@ -45,8 +45,6 @@ export interface Prediction {
   core_features_missing?: string[] | null;
   /** Completude das variáveis centrais: ok, incompleto ou insuficiente. */
   data_quality?: "ok" | "incompleto" | "insuficiente" | null;
-  /** Data (AAAA-MM-DD) do último documento do prontuário usado. */
-  reference_time?: string | null;
   /** Só no POST com `insufficient_data`: a predição anterior foi mantida. */
   previous_prediction_preserved?: boolean;
   features_filled: number | null;
