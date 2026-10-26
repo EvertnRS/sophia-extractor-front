@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Activity, RefreshCw } from "lucide-react";
 import AppHeader from "../components/Appheader";
+import LlmReportPanel from "../components/LlmReportPanel";
 import PredictionPanel from "../components/PredictionPanel";
 import { useAuth } from "../context/useAuth";
 import {
@@ -217,6 +218,11 @@ export default function Prediction() {
 
                                 <PredictionPanel
                                     key={recordKey(selected)}
+                                    dnv={selected.dnv}
+                                    ownerId={selected.owner_id}
+                                />
+                                <LlmReportPanel
+                                    key={`${recordKey(selected)}-report`}
                                     dnv={selected.dnv}
                                     ownerId={selected.owner_id}
                                 />

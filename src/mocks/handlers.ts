@@ -6,6 +6,7 @@ import {
     buildFieldSources,
     buildQuality,
     buildStructuredData,
+    type MockLlmReport,
     type MockDb,
     type MockPrediction,
     type MockRecord,
@@ -147,6 +148,41 @@ function buildPrediction(record: MockRecord): MockPrediction {
 
 function publicPrediction(prediction: MockPrediction, record: MockRecord) {
     const { source_updated_at, ...rest } = prediction;
+    return { ...rest, is_stale: source_updated_at !== record.updated_at };
+}
+
+function buildLlmReport(record: MockRecord): MockLlmReport {
+    const data = record.structured_data;
+    const riskFactors = [
+        data.sepse === "Sim" ? "sepse registrada" : "",
+        Number(data.vent_mecanica_dias ?? 0) > 0
+            ? "necessidade de ventilação mecânica"
+            : "",
+    ].filter(Boolean);
+
+    return {
+        dnv: record.dnv,
+        owner_id: record.owner_id,
+        report_text: [
+            "Resumo do registro",
+            `O registro ${record.dnv} foi analisado com base nos dados revisados e salvos.`,
+            "",
+            riskFactors.length > 0
+                ? `Pontos de atenção: ${riskFactors.join(" e ")}.`
+                : "Não foram identificados pontos de atenção nos dados sintéticos disponíveis.",
+            "",
+            "Este texto é apenas uma demonstração do formato da resposta do LLM.",
+        ].join("\n"),
+        model_name: "llm-demonstracao",
+        model_version: "0.0.0",
+        is_stale: false,
+        created_at: nowIso(),
+        source_updated_at: record.updated_at,
+    };
+}
+
+function publicLlmReport(report: MockLlmReport, record: MockRecord) {
+    const { source_updated_at, ...rest } = report;
     return { ...rest, is_stale: source_updated_at !== record.updated_at };
 }
 
@@ -408,6 +444,47 @@ export const handlers = [
         db.predictions.push(created);
         saveDb();
         return HttpResponse.json(publicPrediction(created, record));
+    }),
+
+    // ----- Relatório textual do LLM ----------------------------------------
+    http.get(url("/api/reports/:dnv"), async ({ request, params }) => {
+        await delay(LATENCY_MS);
+        const db = getDb();
+        const user = authenticate(request, db);
+        if (!user) return error(401, "Não autenticado.");
+
+        const target = resolveTarget(db, user, String(params.dnv), ownerParam(request));
+        if ("failure" in target) return target.failure;
+
+        const report = db.reports.find(
+            (candidate) =>
+                candidate.dnv === target.record.dnv &&
+                candidate.owner_id === target.record.owner_id
+        );
+        if (!report) return error(404, "Nenhum relatório gerado para este registro.");
+        return HttpResponse.json(publicLlmReport(report, target.record));
+    }),
+
+    http.post(url("/api/reports/:dnv"), async ({ request, params }) => {
+        await delay(LATENCY_MS * 4);
+        const db = getDb();
+        const user = authenticate(request, db);
+        if (!user) return error(401, "Não autenticado.");
+
+        const target = resolveTarget(db, user, String(params.dnv), ownerParam(request));
+        if ("failure" in target) return target.failure;
+
+        const created = buildLlmReport(target.record);
+        db.reports = db.reports.filter(
+            (candidate) =>
+                !(
+                    candidate.dnv === target.record.dnv &&
+                    candidate.owner_id === target.record.owner_id
+                )
+        );
+        db.reports.push(created);
+        saveDb();
+        return HttpResponse.json(publicLlmReport(created, target.record));
     }),
 
     // ----- Dados estruturados (registros revisados e salvos) ---------------

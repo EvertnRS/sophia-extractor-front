@@ -33,6 +33,8 @@ function writeStorage(db: MockDb) {
 export function getDb(): MockDb {
     if (!cache) {
         cache = readStorage() ?? createSeedDb();
+        // Migrate mock data saved before the report endpoint existed.
+        if (!Array.isArray(cache.reports)) cache.reports = [];
         writeStorage(cache);
     }
     return cache;

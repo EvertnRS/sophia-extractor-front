@@ -243,6 +243,7 @@ frontend/
     │   ├── Confidencebadge.tsx # Selo de confiança (alta/média/baixa)
     │   ├── QualityPanel.tsx    # Resumo de qualidade do documento
     │   ├── PredictionPanel.tsx # Calcula e mostra a predição de um registro
+    │   ├── LlmReportPanel.tsx  # Gera relatório com IA de um registro
     │   ├── ProgressBar.tsx
     │   ├── Userformmodal.tsx   # Formulário de criar/editar usuário
     │   ├── ProtectedRoute.tsx  # Barra acesso de quem não está logado
@@ -253,7 +254,7 @@ frontend/
     ├── api/                # Tudo que conversa com o backend (veja seção 5)
     │   ├── api.ts              # Cliente Axios único + token + tratamento de sessão expirada
     │   ├── authStorage.ts      # Guarda/lê o token de login no navegador
-    │   └── auth.ts, users.ts, extraction.ts, structuredData.ts, prediction.ts
+    │   └── auth.ts, users.ts, extraction.ts, structuredData.ts, llmReport.ts, prediction.ts
     │
     ├── mocks/              # Backend falso do modo demonstração (MSW)
     │   ├── config.ts           # Prefixo das rotas falsas (/mock-api)

@@ -1,5 +1,6 @@
 import type { FieldSource, QualityBlock } from "../api/extraction";
 import type { Prediction } from "../api/prediction";
+import type { LlmReport } from "../api/llmReport";
 
 /*
  * Dados SINTÉTICOS do modo mock. Nada aqui vem de pacientes reais: os valores
@@ -32,6 +33,10 @@ export interface MockPrediction extends Prediction {
     source_updated_at: string;
 }
 
+export interface MockLlmReport extends LlmReport {
+    source_updated_at: string;
+}
+
 export interface MockJob {
     job_id: string;
     filename: string;
@@ -45,6 +50,7 @@ export interface MockDb {
     users: MockUser[];
     records: MockRecord[];
     predictions: MockPrediction[];
+    reports: MockLlmReport[];
     jobs: MockJob[];
     counters: { dnv: number };
 }
@@ -439,6 +445,7 @@ export function createSeedDb(): MockDb {
                 source_updated_at: secondRecord.updated_at,
             },
         ],
+        reports: [],
         jobs: [],
         counters: { dnv: 100 },
     };
